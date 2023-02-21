@@ -20,6 +20,7 @@ edges[6] = {{9, 5}};
 */
 
 double total_weight = 0.0;
+double total_weight_2 = 0.0;
 std::mutex m;
 std::default_random_engine generator;
 
@@ -104,12 +105,13 @@ public:
 
 struct Edge
 {
-    double weight;
-    int vertex;
+    int to;        // Name of outgoing vertex
+    double weight; // Weight of edge
 
-    bool operator<(const Edge &x)
+    // Compare based on `weight`
+    bool operator<(const Edge &e)
     {
-        return this->weight < x.weight;
+        return this->weight < e.weight;
     }
 };
 
@@ -136,12 +138,12 @@ public:
             for (int j = 0; j < i; ++j)
             {
                 double weight = unif(generator);
-                if (weight > 0.003)
-                {
-                    continue;
-                }
-                edges[i].push_back({weight, j});
-                edges[j].push_back({weight, i});
+                // if (weight > 0.3)
+                // {
+                //     continue;
+                // }
+                edges[i].push_back({j, weight});
+                edges[j].push_back({i, weight});
             }
         }
     }
@@ -156,40 +158,54 @@ double prims(Graph g)
 {
     std::unordered_set<int> visited;
     Heap<Edge> h;
-    h.insert({0.0, 0});
+    h.insert({0, 0.0});
     std::vector<double> dist(g.n, INT_MAX);
     dist[0] = 0.0;
 
     while (h.size() > 0)
     {
         Edge v = h.pop();
-        visited.insert(v.vertex);
-        for (auto &w : g.edges[v.vertex])
+        visited.insert(v.to);
+        for (Edge &w : g.edges[v.to])
         {
-            if (visited.find(w.vertex) != visited.end())
+            if (visited.find(w.to) == visited.end() && dist[w.to] > w.weight)
             {
-                continue;
-            }
-            if (dist[w.vertex] > w.weight)
-            {
-                dist[w.vertex] = w.weight;
-                h.insert({w.weight, w.vertex});
+                dist[w.to] = w.weight;
+                h.insert({w.to, w.weight});
             }
         }
     }
 
     auto x = std::max_element(dist.begin(), dist.end());
     printf("%f\n", *x);
-    // printf(f);
 
     return std::accumulate(dist.begin(), dist.end(), 0.0);
+}
+
+Graph prune(Graph g)
+{
+    std::vector<std::vector<Edge>> edges(g.n);
+    for (int i = 0; i < g.n; ++i)
+    {
+        for (Edge e : g.edges[i])
+        {
+            if (e.weight <= 0.001255)
+            {
+                edges[i].push_back(e);
+            }
+        }
+    }
+    g.edges = edges;
+    return g;
 }
 
 void simulate(int n, int dim)
 {
     Graph g(n, dim);
+    Graph g1 = prune(g);
     m.lock();
     total_weight += prims(g);
+    total_weight_2 += prims(g1);
     m.unlock();
 }
 
@@ -220,5 +236,6 @@ int main(int argc, char *argv[])
 
     // Print results
     printf("%f %d %d %d\n", total_weight / trials, n, trials, dim);
+    printf("%f %d %d %d\n", total_weight_2 / trials, n, trials, dim);
     return 0;
 }
