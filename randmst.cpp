@@ -123,7 +123,8 @@ inline double dist(Vertex a, Vertex b)
 
 inline double pruning_threshold(int n, int dim)
 {
-    return dim ? 1.5 * pow(log2(n) / (M_PI * n), 1.0 / dim) : 1.5 * (3.0 / pow(n, 0.864));
+    return dim ? 1.5 * pow(log2(n) / (M_PI * n), 1.0 / dim) :
+                 1.5 * (3.0 / pow(n, 0.864));
 }
 
 class Graph
@@ -160,7 +161,8 @@ public:
         {
             for (int j = 0; j < i; ++j)
             {
-                double weight = dim ? dist(vertices[i], vertices[j]) : unif(generator);
+                double weight = dim ? dist(vertices[i], vertices[j]) :
+                                unif(generator);
                 if (!flag && weight > threshold)
                 {
                     continue;
@@ -207,7 +209,8 @@ int main(int argc, char *argv[])
     }
 
     // Parse command line arguments
-    int flag = atoi(argv[1]), n = atoi(argv[2]), trials = atoi(argv[3]), dim = atoi(argv[4]);
+    int flag = atoi(argv[1]), n = atoi(argv[2]),
+        trials = atoi(argv[3]), dim = atoi(argv[4]);
 
     std::vector<std::thread> threads;
     for (int i = 0; i < trials; ++i)
