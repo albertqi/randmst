@@ -1,17 +1,22 @@
 #include <stdio.h>
-#include <vector>
-#include <unordered_set>
+#include <math.h>
 #include <thread>
 #include <mutex>
+#include <vector>
+#include <unordered_set>
 #include <numeric>
 #include <random>
-#include <math.h>
 #include <chrono>
 
-double total_weight = 0.0;
+double total_weight = 0.0, total_graph_runtime = 0.0, total_prims_runtime = 0.0;
 std::mutex m;
 thread_local std::mt19937 generator;
 
+/**
+ * Min-heap with O(log(n)) `pop` and `insert`.
+ *
+ * @tparam T the type of data stored in the min-heap.
+ */
 template <typename T>
 class Heap
 {
@@ -130,7 +135,7 @@ public:
     Graph(int flag, int n, int dim)
     {
         this->n = n;
-        edges = std::vector<std::vector<Edge>>(n);
+        this->edges = std::vector<std::vector<Edge>>(n);
 
         std::random_device random_dev;
         generator.seed(random_dev());
@@ -150,17 +155,18 @@ public:
             }
         }
 
+        double threshold = pruning_threshold(n, dim);
         for (int i = 0; i < n; ++i)
         {
             for (int j = 0; j < i; ++j)
             {
                 double weight = dim ? dist(vertices[i], vertices[j]) : unif(generator);
-                if (!flag && weight > pruning_threshold(n, dim))
+                if (!flag && weight > threshold)
                 {
                     continue;
                 }
-                edges[i].push_back({j, weight});
-                edges[j].push_back({i, weight});
+                this->edges[i].push_back({j, weight});
+                this->edges[j].push_back({i, weight});
             }
         }
     }
@@ -208,10 +214,27 @@ int main(int argc, char *argv[])
     {
         threads.push_back(std::thread([&flag, &n, &dim]()
         {
+            // Graph construction
+            auto start = std::chrono::high_resolution_clock::now();
             Graph g(flag, n, dim);
-            double mst_weight = prims(g);
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start;
             m.lock();
-            total_weight += mst_weight;
+            total_graph_runtime += diff.count();
+            m.unlock();
+
+            // Prim's algorithm on `G`
+            start = std::chrono::high_resolution_clock::now();
+            double weight = prims(g);
+            end = std::chrono::high_resolution_clock::now();
+            diff = end - start;
+            m.lock();
+            total_prims_runtime += diff.count();
+            m.unlock();
+
+            // Update `total_weight`
+            m.lock();
+            total_weight += weight;
             m.unlock();
         }));
     }
@@ -222,5 +245,8 @@ int main(int argc, char *argv[])
 
     // Print results
     printf("%f %d %d %d\n", total_weight / trials, n, trials, dim);
+    printf("%f seconds for graph construction\n", total_graph_runtime / trials);
+    printf("%f seconds for Prim's algorithm\n", total_prims_runtime / trials);
+
     return 0;
 }
