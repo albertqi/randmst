@@ -5,24 +5,12 @@
 #include <mutex>
 #include <numeric>
 #include <random>
-#include <cmath>
-
-/*
-
-edges[0] = {{2, 1}, {3, 2}, {3, 3}};
-edges[1] = {{2, 0}, {4, 2}, {3, 4}};
-edges[2] = {{3, 0}, {4, 1}, {5, 3}, {1, 4}, {6, 5}};
-edges[3] = {{3, 0}, {5, 2}, {7, 5}};
-edges[4] = {{3, 1}, {1, 2}, {8, 5}};
-edges[5] = {{6, 2}, {7, 3}, {8, 4}, {9, 6}};
-edges[6] = {{9, 5}};
-
-*/
+#include <math.h>
+#include <chrono>
 
 double total_weight = 0.0;
-double total_weight_2 = 0.0;
 std::mutex m;
-std::default_random_engine generator;
+thread_local std::mt19937 generator;
 
 template <typename T>
 class Heap
@@ -103,6 +91,11 @@ public:
     }
 };
 
+struct Vertex
+{
+    std::vector<double> coords; // Coordinates of vertex
+};
+
 struct Edge
 {
     int to;        // Name of outgoing vertex
@@ -115,11 +108,18 @@ struct Edge
     }
 };
 
-struct Vertex
+inline double dist(Vertex a, Vertex b)
 {
-    double w, x, y, z;
-    double dist;
-};
+    return sqrt((a.coords[0] - b.coords[0]) * (a.coords[0] - b.coords[0]) +
+                (a.coords[1] - b.coords[1]) * (a.coords[1] - b.coords[1]) +
+                (a.coords[2] - b.coords[2]) * (a.coords[2] - b.coords[2]) +
+                (a.coords[3] - b.coords[3]) * (a.coords[3] - b.coords[3]));
+}
+
+inline double pruning_threshold(int n, int dim)
+{
+    return dim ? 1.5 * pow(log2(n) / (M_PI * n), 1.0 / dim) : 1.5 * (3.0 / pow(n, 0.864));
+}
 
 class Graph
 {
@@ -127,30 +127,42 @@ public:
     int n;
     std::vector<std::vector<Edge>> edges;
 
-    Graph(int n, int dim)
+    Graph(int flag, int n, int dim)
     {
         this->n = n;
         edges = std::vector<std::vector<Edge>>(n);
+
+        std::random_device random_dev;
+        generator.seed(random_dev());
         std::uniform_real_distribution<double> unif(0.0, 1.0);
+
+        std::vector<Vertex> vertices;
+        if (dim)
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                std::vector<double> v(4, 0.0);
+                for (int j = 0; j < std::min(4, dim); ++j)
+                {
+                    v[j] = unif(generator);
+                }
+                vertices.push_back({v});
+            }
+        }
 
         for (int i = 0; i < n; ++i)
         {
             for (int j = 0; j < i; ++j)
             {
-                double weight = unif(generator);
-                // if (weight > 0.3)
-                // {
-                //     continue;
-                // }
+                double weight = dim ? dist(vertices[i], vertices[j]) : unif(generator);
+                if (!flag && weight > pruning_threshold(n, dim))
+                {
+                    continue;
+                }
                 edges[i].push_back({j, weight});
                 edges[j].push_back({i, weight});
             }
         }
-    }
-
-    double mst_weight()
-    {
-        return this->n;
     }
 };
 
@@ -176,37 +188,7 @@ double prims(Graph g)
         }
     }
 
-    auto x = std::max_element(dist.begin(), dist.end());
-    printf("%f\n", *x);
-
     return std::accumulate(dist.begin(), dist.end(), 0.0);
-}
-
-Graph prune(Graph g)
-{
-    std::vector<std::vector<Edge>> edges(g.n);
-    for (int i = 0; i < g.n; ++i)
-    {
-        for (Edge e : g.edges[i])
-        {
-            if (e.weight <= 0.001255)
-            {
-                edges[i].push_back(e);
-            }
-        }
-    }
-    g.edges = edges;
-    return g;
-}
-
-void simulate(int n, int dim)
-{
-    Graph g(n, dim);
-    Graph g1 = prune(g);
-    m.lock();
-    total_weight += prims(g);
-    total_weight_2 += prims(g1);
-    m.unlock();
 }
 
 int main(int argc, char *argv[])
@@ -221,13 +203,17 @@ int main(int argc, char *argv[])
     // Parse command line arguments
     int flag = atoi(argv[1]), n = atoi(argv[2]), trials = atoi(argv[3]), dim = atoi(argv[4]);
 
-    // Set generator seed
-    generator.seed(time(NULL));
-
     std::vector<std::thread> threads;
     for (int i = 0; i < trials; ++i)
     {
-        threads.push_back(std::thread(simulate, n, dim));
+        threads.push_back(std::thread([&flag, &n, &dim]()
+        {
+            Graph g(flag, n, dim);
+            double mst_weight = prims(g);
+            m.lock();
+            total_weight += mst_weight;
+            m.unlock();
+        }));
     }
     for (std::thread &t : threads)
     {
@@ -236,6 +222,5 @@ int main(int argc, char *argv[])
 
     // Print results
     printf("%f %d %d %d\n", total_weight / trials, n, trials, dim);
-    printf("%f %d %d %d\n", total_weight_2 / trials, n, trials, dim);
     return 0;
 }
