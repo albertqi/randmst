@@ -100,8 +100,7 @@ $$w(n,\,d)=
 
 However, we still need to account for the variance of the maximum edge weights. That is, because we are generating our edges in a random fashion, it is likely that some maximum edge weights will exceed $w(n,\,d)$. To adjust for this, we will simply multiply our $w(n,\,d)$ by 1.5. This gives us the following pruning threshold $k(n,\,d)$:
 
-$$
-\begin{aligned}k(n,\,d)&=1.5\cdot w(n,\,d)\\
+$$\begin{aligned}k(n,\,d)&=1.5\cdot w(n,\,d)\\
 &=\begin{cases}
     1.5\cdot\dfrac{3}{n^{0.864}}&\text{for edges }\mathrm{Unif}(0,\,1)\\[8pt]
     1.5\cdot\left(\dfrac{\log_2 n}{\pi n}\right)^{1/d}&\text{for Euclidean MSTs with dimension }d
@@ -111,11 +110,9 @@ So, when we generate the edges for some complete graph $G$, we will test if the 
 
 ## 3. Results
 
-### Uniform Edge Weights
+For each pruned graph, we run 16 trials and calculate the average MST weight, average runtime for graph construction, and average runtime for Prim's algorithm. For lower values of $n$, we manually check that the results are reasonable since the maximum edge weights are more likely to exceed our thresholds.
 
-Unif(0, 1), averaged over 16 trials
-
-`./randmst 0 [n] 16 0`
+Case 1: Edge weights are i.i.d. $\mathrm{Unif}(0,\,1)$. The MST weight and runtimes are averaged over 16 trials.
 
 | $n$    | MST Weight | Runtime for Graph Construction (sec.) | Runtime for Prim's Algorithm (sec.) |
 | :----: | :--------: | :-----------------------------------: | :---------------------------------: |
@@ -132,11 +129,15 @@ Unif(0, 1), averaged over 16 trials
 | 131072 | 1.200      | 261.102                               | 1.493                               |
 | 262144 | 1.201      | 1039.243                              | 4.624                               |
 
-### DIM = 2
+We can then graph these results to find $f(n)$.
 
-DIM = 2, averaged over 16 trials
+![MST weight with uniform edge weights](./assets/mst_weight_0.png)
 
-`./randmst 0 [n] 16 2`
+As we can see by the graph, the expected MST weights seem to align with the following function:
+
+$$f(n)=1.2\text{ for edges }\mathrm{Unif}(0,\,1)$$
+
+Case 2: Edge weights are generated in a Euclidean MST with 2 dimensions. The MST weight and runtimes are averaged over 16 trials.
 
 | $n$    | MST Weight | Runtime for Graph Construction (sec.) | Runtime for Prim's Algorithm (sec.) |
 | :----: | :--------: | :-----------------------------------: | :---------------------------------: |
@@ -153,13 +154,15 @@ DIM = 2, averaged over 16 trials
 | 131072 | 234.658    | 2040.865                              | 1.662                               |
 | 262144 | 331.655    | 8510.621                              | 11.327                              |
 
+We can then graph these results to find $f(n)$.
 
+![MST weight for Euclidean MST with 2 dimensions](./assets/mst_weight_2.png)
 
-### DIM = 3
+As we can see by the graph, the expected MST weights seem to align with the following function:
 
-DIM = 3, averaged over 16 trials
+$$f(n)=0.68n^{1/2}\text{ for Euclidean MSTs with dimension }2$$
 
-`./randmst 0 [n] 16 3`
+Case 3: Edge weights are generated in a Euclidean MST with 3 dimensions. The MST weight and runtimes are averaged over 16 trials.
 
 | $n$    | MST Weight | Runtime for Graph Construction (sec.) | Runtime for Prim's Algorithm (sec.) |
 | :----: | :--------: | :-----------------------------------: | :---------------------------------: |
@@ -176,14 +179,15 @@ DIM = 3, averaged over 16 trials
 | 131072 | 1676.969   | 2069.100                              | 5.976                               |
 | 262144 | 2657.826   | 8728.478                              | 122.507                             |
 
+We can then graph these results to find $f(n)$.
 
+![MST weight for Euclidean MST with 3 dimensions](./assets/mst_weight_3.png)
 
+As we can see by the graph, the expected MST weights seem to align with the following function:
 
-### DIM = 4
+$$f(n)=0.71n^{2/3}\text{ for Euclidean MSTs with dimension }3$$
 
-DIM = 4, averaged over 16 trials
-
-`./randmst 0 [n] 16 4`
+Case 4: Edge weights are generated in a Euclidean MST with 4 dimensions. The MST weight and runtimes are averaged over 16 trials.
 
 | $n$    | MST Weight | Runtime for Graph Construction (sec.) | Runtime for Prim's Algorithm (sec.) |
 | :----: | :--------: | :-----------------------------------: | :---------------------------------: |
@@ -200,4 +204,14 @@ DIM = 4, averaged over 16 trials
 | 131072 | 4741.223   | 2084.392                              | 29.771                              |
 | 262144 | 7949.608   | 9406.927                              | 931.810                             |
 
+We can then graph these results to find $f(n)$.
+
+![MST weight for Euclidean MST with 4 dimensions](./assets/mst_weight_4.png)
+
+As we can see by the graph, the expected MST weights seem to align with the following function:
+
+$$f(n)=0.78n^{3/4}\text{ for Euclidean MSTs with dimension }4$$
+
 ## 4. Discussion of Experiments
+
+First, we chose to use 
