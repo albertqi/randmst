@@ -10,13 +10,13 @@
 
 ## 1. Introduction
 
-In this write-up, we determine how the expected weight of the minimum spanning tree (hereinafter called MST) grows as a function of $n$ (the number of vertices) for each of the three given cases. We will first talk about our pruning thresholds for each case and then break down our results for each case. Finally, we will discuss our experiments in more depth, covering the asymptotic runtime of our algorithm and other issues we came across along the way.
+In this write-up, we determine how the expected weight of the minimum spanning tree (hereinafter called MST) grows as a function of $n$ (the number of vertices) for each of the three given cases (although we split the third case into two separate cases). We will first talk about our pruning thresholds for each case and then break down our results for each case. Finally, we will discuss our experiments in more depth, covering the asymptotic runtime of our algorithm and other intruiging details we discovered along the way.
 
 ## 2. Pruning Thresholds
 
-The biggest challenge for this project is figuring out how to handle large values of $n$. A complete graph with $n=262144$ vertices has over 34 billion edges; it is unreasonable to run Prim's algorithm on graphs of this magnitude. Thus, we need to find a way to prune edges that are extremely unlikely to be included in the MST.
+The biggest challenge for this project is figuring out how to handle large values of $n$. A complete graph with $n=262144$ vertices has over 34 billion edges; it is unreasonable to run Prim's algorithm on graphs of this size. Thus, we need to find a way to prune edges that are extremely unlikely to be included in the MST.
 
-Say we have some arbitrary complete graph $G$. If we knew the maximum edge weight $w$ in the MST of $G$, then we could prune all edges in $G$ that have a weight larger than $w$ since we know that these will not be included in the MST. So, how can we find the maximum edge weight of $G$ before we spend time constructing it?
+Say we have some arbitrary complete graph $G$. If we knew the maximum edge weight $w$ in the MST of $G$, then we could prune all edges in $G$ that have a weight larger than $w$ since we know that these will not be included in the MST. So, how can we find the maximum edge weight of the MST of $G$ before we actually construct it?
 
 We cannot find the exact value of $w$ for $G$, but we can estimate $w$ by looking at the maximum edge weights for smaller values of $n$. Then, we can construct a function $w(n)$ that returns the expected maximum edge weight as a function of $n$.
 
@@ -78,7 +78,7 @@ We can then graph these results for 2, 3, and 4 dimensions to find $w(n,\,d)$.
 
 ![Max edge weights for Euclidean MSTs](./assets/max_edge_weight_234.png)
 
-While we could just use the trendlines as our function $w(n,\,d)$, the maximum edge weights seem to follow roughly the same shape, meaning there should be one function $w(n,\,d)$ that simultaneously captures 2, 3, and 4 dimensions. According to Penrose's paper on "The longest edge of the random minimal spanning tree", we can conclude that $(w,\,d)$ might be the following:
+While we could just use the trendlines as our function $w(n,\,d)$, the maximum edge weights seem to follow roughly the same shape, meaning there should be one function $w(n,\,d)$ that simultaneously captures 2, 3, and 4 dimensions. According to Penrose's paper on ["The longest edge of the random minimal spanning tree"](https://doi.org/10.1214/aoap/1034625335), we can conclude that $w(n,\,d)$ might be the following:
 
 $$w(n,\,d)=\left(\dfrac{\log_2 n}{\pi n}\right)^{1/d}\text{ for Euclidean MSTs with dimension }d$$
 
@@ -98,7 +98,7 @@ $$w(n,\,d)=
     \left(\dfrac{\log_2 n}{\pi n}\right)^{1/d}&\text{for Euclidean MSTs with dimension }d
 \end{cases}$$
 
-However, we still need to account for the variance of the maximum edge weights. That is, because we are generating our edges in a random fashion, it is likely that some maximum edge weights will exceed $w(n,\,d)$. To adjust for this, we will simply multiply our $w(n,\,d)$ by 1.5. This gives us the following pruning threshold $k(n,\,d)$:
+However, we still need to account for the variance of the maximum edge weights. That is, because we are generating our edges in a random fashion, it is likely that some maximum edge weights will exceed $w(n,\,d)$. To adjust for this, we will simply multiply our $w(n,\,d)$ by $1.5$. This gives us the following pruning threshold $k(n,\,d)$:
 
 $$\begin{aligned}k(n,\,d)&=1.5\cdot w(n,\,d)\\
 &=\begin{cases}
@@ -106,11 +106,11 @@ $$\begin{aligned}k(n,\,d)&=1.5\cdot w(n,\,d)\\
     1.5\cdot\left(\dfrac{\log_2 n}{\pi n}\right)^{1/d}&\text{for Euclidean MSTs with dimension }d
 \end{cases}\end{aligned}$$
 
-So, when we generate the edges for some complete graph $G$, we will test if the weight of the edge exceeds $k(n,\,d)$. If so, we will not include it in our graph. This drastically decreases the time required to construct our graphs.
+So, when we generate the edges for some complete graph $G$, we will test if the weight of each edge exceeds $k(n,\,d)$. If so, we will not include it in our graph. This drastically decreases the time required to construct our graphs.
 
 ## 3. Results
 
-For each pruned graph, we run 16 trials and calculate the average MST weight, average runtime for graph construction, and average runtime for Prim's algorithm. For lower values of $n$, we manually check that the results are reasonable since the maximum edge weights are more likely to exceed our thresholds.
+For each pruned graph, we run 16 trials and calculate the average MST weight, average runtime for graph construction, and average runtime for Prim's algorithm (note that our program runs with optimization level `-O3`). For lower values of $n$, we manually check that the results are reasonable since the maximum edge weights are more likely to exceed our thresholds.
 
 Case 1: Edge weights are i.i.d. $\mathrm{Unif}(0,\,1)$. The MST weight and runtimes are averaged over 16 trials.
 
@@ -214,4 +214,20 @@ $$f(n)=0.78n^{3/4}\text{ for Euclidean MSTs with dimension }4$$
 
 ## 4. Discussion of Experiments
 
-First, we chose to use 
+First, note that we use Prim's algorithm instead of Kruskal's algorithm to find the MSTs. We know that Prim's will run faster on denser graphs and that Kruskal's will run faster on sparser graphs. So, if we are pruning the edges, then why are we using Prim's algorithm?
+
+In order to prune the edges, we need to first find the pruning threshold. This requires running either Prim's or Kruskal's algorithm on complete graphs, which are very dense. Hence, it makes sense to run Prim's algorithm on these graphs. Furthermore, if we look at the runtimes for graph construction versus Prim's algorithm, we can very clearly see that the majority of the runtime comes from graph construction, meaning using either Prim's or Kruskal's algorithm is fine. Thus, it makes sense to use Prim's algorithm for everything.
+
+Our implementation of Prim's algorithm is slightly altered, however. When we insert an edge into the heap, we do not check if the outgoing vertex is already in the heap (whereupon you would normally decrease the key). Instead, we just add the entire edge to the heap. This implementation of Prim's algorithm is still correct, as our heap will always first give the edge with the lower weight. This is equivalent to decreasing the key, except we just have more unnecessary calls to `pop`. Thus, our algorithm is still correct.
+
+Now, we can analyze the runtime of our program. The time complexity for creating our graphs is $O(n^2)$, as we need to loop over all $O(n^2)$ edges during construction. Even though we still have to loop $O(n^2)$ times, pruning the edges does help reduce the amount of work performed on each iteration.
+
+The time complexity for our implementation of Prim's algorithm is $O(m\log_2 n)$. With our modified algorithm, we call `pop` at most $m$ times, and we call `insert` at most $m$ times. The runtime for both `pop` and `insert` is $O(\log_2 n)$, so the overall time complexity for our version of Prim's algorithm is $O(m\log_2 n+m\log_2 n)=O(m\log_2 n)$ by asymptotic theory.
+
+Moreover, the growth rates $f(n)$ were actually rather surprising to us at first but make more sense after some thought. In the case where the edge weights are i.i.d. $\mathrm{Unif}(0,\,1)$, we get that $f(n)=1.2$. This makes sense because as $n$ increases, the individual edge weights within the MST decrease (more vertices means that the distance from each vertex to its closest neighbor is smaller). Thus, $f(n)$ stays constant at $1.2$.
+
+In the Euclidean MSTs, it seems that the expected MST weights are $O(n^{(d-1)/d})$. This makes sense because as you increase the number of dimensions, the expected distance between any two vertices increases. Take the longest possible edge, for example. When we have 2 dimensions, the longest possible edge has weight $\sqrt{2}$. When we have 3 and 4 dimensions, the longest possible edge weight increases to $\sqrt{3}$ and $\sqrt{4}=2$, respectively. Thus, the MST weights increase as $d$ increases.
+
+Furthermore, we know that the expected MST weights in Euclidean MSTs increase as $n$ increases; this also makes sense. Indeed, the expected invidual edge weight decreases as $n$ increases, but in higher dimensions, the decrease in weight will not be as drastic. Thus, the MST weights increase as $n$ increases.
+
+Lastly, note that we generate random values through the `<random>` header because we trust this more than the C standard library function `rand`. Additionally, our generator is `thread_local` and seeded via `random_device`, meaning each trial has independent randomness. We learned to do this the hard way; at first, our generator was not `thread_local`, meaning we did not have independent randomness and needed to redo some trials.
