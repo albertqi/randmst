@@ -50,6 +50,11 @@ private:
     }
 
 public:
+    /**
+     * Pops minimum element from heap.
+     *
+     * @return Minimum element in heap.
+     */
     T pop()
     {
         // Handle empty heap
@@ -76,6 +81,9 @@ public:
         return root;
     }
 
+    /**
+     * Inserts an element into heap.
+     */
     void insert(T node)
     {
         // Insert node
@@ -90,17 +98,26 @@ public:
         }
     }
 
+    /**
+     * @return Size of heap.
+     */
     int size()
     {
         return nodes.size();
     }
 };
 
+/**
+ * Vertex with coordinates `coords`.
+ */
 struct Vertex
 {
     std::vector<double> coords; // Coordinates of vertex
 };
 
+/**
+ * Edge with outgoing vertex `to` and weight `weight`.
+ */
 struct Edge
 {
     int to;        // Name of outgoing vertex
@@ -113,6 +130,11 @@ struct Edge
     }
 };
 
+/**
+ * @param a First vertex.
+ * @param b Second vertex.
+ * @return Distance between vertex `a` and vertex `b`.
+ */
 inline double dist(Vertex a, Vertex b)
 {
     return sqrt((a.coords[0] - b.coords[0]) * (a.coords[0] - b.coords[0]) +
@@ -121,27 +143,37 @@ inline double dist(Vertex a, Vertex b)
                 (a.coords[3] - b.coords[3]) * (a.coords[3] - b.coords[3]));
 }
 
+/**
+ * @param n Number of vertices.
+ * @param dim Dimension of graph.
+ * @return Pruning threshold for graph with `n` vertices and dimension `dim`.
+ */
 inline double pruning_threshold(int n, int dim)
 {
     return dim ? 1.5 * pow(log2(n) / (M_PI * n), 1.0 / dim) :
                  1.5 * (3.0 / pow(n, 0.864));
 }
 
+/**
+ * Graph with `n` vertices and an adjacency list of edges `edges`.
+ */
 class Graph
 {
 public:
-    int n;
-    std::vector<std::vector<Edge>> edges;
+    int n;                                // Number of vertices
+    std::vector<std::vector<Edge>> edges; // Adjacency list of edges
 
     Graph(int flag, int n, int dim)
     {
         this->n = n;
         this->edges = std::vector<std::vector<Edge>>(n);
 
+        // Set up random generator
         std::random_device random_dev;
         generator.seed(random_dev());
         std::uniform_real_distribution<double> unif(0.0, 1.0);
 
+        // Initialize vertices
         std::vector<Vertex> vertices;
         if (dim)
         {
@@ -161,12 +193,15 @@ public:
         {
             for (int j = 0; j < i; ++j)
             {
+                // Calculate weight of edge
                 double weight = dim ? dist(vertices[i], vertices[j]) :
-                                unif(generator);
+                                      unif(generator);
                 if (!flag && weight > threshold)
                 {
                     continue;
                 }
+
+                // Add edge to adjacency list
                 this->edges[i].push_back({j, weight});
                 this->edges[j].push_back({i, weight});
             }
@@ -174,8 +209,15 @@ public:
     }
 };
 
+/**
+ * Runs Prim's algorithm on graph `g`.
+ *
+ * @param g Graph on which Prim's will be run.
+ * @return Total weight of MST.
+ */
 double prims(Graph g)
 {
+    // Initialize variables
     std::unordered_set<int> visited;
     Heap<Edge> h;
     h.insert({0, 0.0});
@@ -184,12 +226,14 @@ double prims(Graph g)
 
     while (h.size() > 0)
     {
+        // Pop from min-heap
         Edge v = h.pop();
         visited.insert(v.to);
         for (Edge &w : g.edges[v.to])
         {
             if (visited.find(w.to) == visited.end() && dist[w.to] > w.weight)
             {
+                // Update `dist` and heap `h`
                 dist[w.to] = w.weight;
                 h.insert({w.to, w.weight});
             }
@@ -226,7 +270,7 @@ int main(int argc, char *argv[])
             total_graph_runtime += diff.count();
             m.unlock();
 
-            // Prim's algorithm on `G`
+            // Prim's algorithm on `g`
             start = std::chrono::high_resolution_clock::now();
             double weight = prims(g);
             end = std::chrono::high_resolution_clock::now();
